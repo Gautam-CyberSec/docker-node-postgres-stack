@@ -135,7 +135,7 @@ jobs:
       # Fails the build on fixable HIGH/CRITICAL findings. Unfixed ones are
       # reported but do not block, since there is nothing to upgrade to.
       - name: Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: stack:scan
           format: table

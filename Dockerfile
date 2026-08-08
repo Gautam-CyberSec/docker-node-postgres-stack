@@ -27,33 +27,47 @@ COPY app/ ./
 RUN npm test
 
 # ── runtime ──────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS runtime
+#
+# Built from a bare Alpine rather than node:22-alpine, and the node binary is
+# copied in. Two reasons:
+#
+#   1. No npm. Nothing at runtime needs a package manager — the entrypoint is
+#      `node` and the health check is `node -e`. The first build of this image
+#      failed its Trivy gate with 8 HIGH/CRITICAL findings, every one of them in
+#      npm's own bundled dependencies and none in application code.
+#   2. Actually smaller. Deleting npm in a later layer does not reclaim the
+#      bytes; it only writes whiteout entries, which made the image *larger*.
+#      Never adding it is the only way to remove it.
+#
+# tini reaps zombies and forwards signals. Node as PID 1 gets no default SIGTERM
+# handler, so without it `docker stop` waits out the grace period and then
+# SIGKILLs — a ten second pause per container on every deploy, with in-flight
+# requests dropped rather than drained.
+FROM alpine:3.21 AS runtime
 
-# tini reaps zombies and forwards signals. Node as PID 1 does not receive a
-# default SIGTERM handler, so without this `docker stop` waits out the full
-# grace period and then SIGKILLs — a ten second pause on every deploy and
-# dropped in-flight requests.
-RUN apk add --no-cache tini=~0.19
+# Versions pinned to the minor series so a rebuild is reproducible without
+# breaking the moment Alpine ships a patch release.
+RUN apk add --no-cache \
+    libstdc++=~14 \
+    ca-certificates=~20241121 \
+    tini=~0.19
 
-# npm is not needed to run the application — the entrypoint is `node`, and the
-# health check is `node -e`. Removing it deletes a package manager from the
-# runtime (so a compromised process cannot install anything) and drops every CVE
-# that npm's own bundled dependencies carry. On the first build of this image
-# that was 8 findings, 1 of them CRITICAL, none in application code.
-RUN rm -rf /usr/local/lib/node_modules/npm \
-    /usr/local/bin/npm \
-    /usr/local/bin/npx
+# The node binary is dynamically linked against libstdc++ and libgcc, both
+# pulled in above.
+COPY --from=node:22-alpine /usr/local/bin/node /usr/local/bin/node
+
+# Alpine has no `node` user of its own, so create the same uid the official
+# image uses.
+RUN addgroup -g 1000 app && adduser -D -u 1000 -G app app
 
 ENV NODE_ENV=production \
     PORT=3000
 
 WORKDIR /app
 
-# The node image already provides an unprivileged `node` user. Ownership is set
-# during the copy so no recursive chown layer is needed.
-COPY --from=deps --chown=node:node /app/node_modules ./node_modules
-COPY --chown=node:node app/package.json ./
-COPY --chown=node:node app/src ./src
+COPY --from=deps --chown=1000:1000 /app/node_modules ./node_modules
+COPY --chown=1000:1000 app/package.json ./
+COPY --chown=1000:1000 app/src ./src
 
 # Never root. Combined with a read-only root filesystem in compose.yaml, a
 # compromised process cannot modify its own code.
