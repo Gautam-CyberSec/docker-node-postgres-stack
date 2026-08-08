@@ -35,6 +35,15 @@ FROM node:22-alpine AS runtime
 # dropped in-flight requests.
 RUN apk add --no-cache tini=~0.19
 
+# npm is not needed to run the application — the entrypoint is `node`, and the
+# health check is `node -e`. Removing it deletes a package manager from the
+# runtime (so a compromised process cannot install anything) and drops every CVE
+# that npm's own bundled dependencies carry. On the first build of this image
+# that was 8 findings, 1 of them CRITICAL, none in application code.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx
+
 ENV NODE_ENV=production \
     PORT=3000
 

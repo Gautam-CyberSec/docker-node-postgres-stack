@@ -34,7 +34,18 @@ cp .env.example .env
 docker compose up --build
 ```
 
-<!-- SAMPLE-OUTPUT -->
+```console
+$ curl -s localhost:3000/readyz
+{"status":"ready"}
+
+$ curl -s -X POST localhost:3000/api/items \
+    -H 'content-type: application/json' -d '{"name":"widget"}'
+{"id":"1","name":"widget","created_at":"2026-08-08T18:00:38.498Z"}
+```
+
+`id` is a string because Postgres `BIGINT` exceeds what a JSON number can hold
+safely — node-postgres returns it as text rather than silently losing precision
+past 2^53.
 
 ## The stack
 
@@ -58,7 +69,7 @@ flowchart LR
     probe -.->|yes| ready["200 · serving"]
 ```
 
-## Six decisions worth reading
+## Seven decisions worth reading
 
 | | Decision | Why |
 |---|---|---|
@@ -68,6 +79,7 @@ flowchart LR
 | 4 | **Non-root, numeric UID, read-only root filesystem** | `USER 1000:1000` rather than `USER node`, because Kubernetes `runAsNonRoot` resolves the UID before `/etc/passwd` is readable. With `read_only: true`, a compromised process cannot rewrite its own code. |
 | 5 | **tini as PID 1** | Node gets no default `SIGTERM` handler as PID 1, so `docker stop` waits out the full grace period and then `SIGKILL`s — a ten-second pause on every deploy and dropped in-flight requests. |
 | 6 | **Postgres publishes no ports** | It is reachable over the compose network and nowhere else. Publishing 5432 "just for development" is how databases end up on the internet. |
+| 7 | **npm is deleted from the runtime image** | Nothing at runtime needs a package manager — the entrypoint is `node`. Removing it took the image from 8 HIGH/CRITICAL CVEs to none, and every one of them was in npm's own bundled dependencies rather than in application code. |
 
 Full reasoning, including what was rejected, is in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
@@ -80,7 +92,7 @@ Claims in a README age badly, so the ones that matter are tested on every push:
 | `hadolint` | Dockerfile lints clean at warning threshold |
 | Unit tests, Node 20 and 22 | 14 tests, including that `/healthz` never touches the database |
 | Image build | `Config.User` is `1000:1000` — the build fails if it regresses to root |
-| Image size | Multi-stage measured against a single-stage build of the same app |
+| Image size | Multi-stage measured against a single-stage build of the same app, reported in the job summary |
 | Compose stack | Real stack starts, and the smoke suite runs against it |
 | Smoke tests | uid is 1000, `/app` is not writable, `/tmp` is, Postgres is unreachable from the host, a row survives a write-then-read |
 | Trivy | Fails on fixable HIGH/CRITICAL CVEs |
