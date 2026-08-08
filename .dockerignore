@@ -1,0 +1,18 @@
+# Everything the build does not need. Smaller context means faster builds and
+# removes any chance of a stray secret being copied into a layer.
+.git
+.github
+**/node_modules
+**/npm-debug.log
+
+# Never let a real environment file reach the build context.
+.env
+.env.*
+!.env.example
+
+docs
+*.md
+!app/README.md
+Makefile
+.dockerignore
+.gitignore

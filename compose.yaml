@@ -1,0 +1,79 @@
+# Reference stack: one Node service, one Postgres, wired the way a small
+# production deployment would be.
+#
+#   docker compose up --build
+#
+# No `version:` key — it has been obsolete since Compose v2 and current
+# versions warn about it.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: docker-node-postgres-stack:local
+
+    # The app does not start until Postgres reports healthy. Without this the
+    # first connection races the database's own initialisation, which is why so
+    # many stacks carry a wait-for-it script — the condition replaces it.
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      PORT: 3000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+    # The application never writes to disk, so the filesystem is read-only and
+    # /tmp is a tmpfs. A process that cannot alter its own code is a much smaller
+    # foothold.
+    read_only: true
+    tmpfs:
+      - /tmp
+
+    security_opt:
+      - no-new-privileges:true
+
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+
+    # Deliberately no `ports:`. Postgres is reachable from the app over the
+    # compose network and from nowhere else. Publishing 5432 to the host is the
+    # most common way a development stack ends up exposed.
+
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Runs once, only when the data directory is empty.
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+    healthcheck:
+      # -U and -d matter: without them pg_isready checks the wrong database and
+      # can report healthy before the application's own database exists.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    security_opt:
+      - no-new-privileges:true
+
+    restart: unless-stopped
+
+volumes:
+  db-data:
