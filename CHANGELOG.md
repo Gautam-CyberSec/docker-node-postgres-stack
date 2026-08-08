@@ -12,6 +12,25 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Kubernetes manifests reusing the same probes
 - Signed images and an SBOM
 
+## [1.1.0] — 2026-08-09
+
+### Changed
+- Express upgraded from 4.22.2 to **5.2.1**. Validated on a compatibility branch
+  through the full suite, not unit tests alone: the compose stack and smoke suite
+  ran against it and every response shape and status code matched the Express 4
+  baseline exactly. The application needed no changes — async handlers already
+  used explicit `try/catch` with `next(err)`, `req.body` was already read with
+  optional chaining, and all routes are literal strings, so none of v5's breaking
+  changes applied.
+- GitHub Actions updated: `checkout@v7`, `setup-node@v7`, `setup-buildx-action@v4`,
+  `build-push-action@v7`, `hadolint-action@v3.4.0`.
+
+### Not changed
+- Node stays on **22 LTS**. A proposed bump to 25 was declined: 25 is a current
+  release, not LTS, and reaches end of life before 22 does. Revisit when Node 26
+  enters LTS, moving the base image, CI matrix and documentation together.
+
+
 ## [1.0.0] — 2026-08-08
 
 Initial release.
@@ -38,5 +57,6 @@ Initial release.
 - `.env` excluded from the build context; no secrets in any layer.
 - Trivy fails the build on fixable HIGH/CRITICAL findings.
 
-[Unreleased]: https://github.com/Gautam-CyberSec/docker-node-postgres-stack/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Gautam-CyberSec/docker-node-postgres-stack/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Gautam-CyberSec/docker-node-postgres-stack/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Gautam-CyberSec/docker-node-postgres-stack/releases/tag/v1.0.0
