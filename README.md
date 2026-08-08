@@ -12,6 +12,7 @@ Multi-stage build · non-root · read-only filesystem · health-gated startup
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 [Architecture](ARCHITECTURE.md) ·
+[Lessons learned](LESSONS.md) ·
 [Security](SECURITY.md) ·
 [Contributing](CONTRIBUTING.md) ·
 [Changelog](CHANGELOG.md)
@@ -175,6 +176,14 @@ fixable HIGH/CRITICAL findings. Details and the reporting route:
 - [ ] Multi-architecture images (`linux/amd64`, `linux/arm64`)
 - [ ] Kubernetes manifests using the same probes
 - [ ] Signed images and an SBOM
+
+## Engineering decisions &amp; lessons learned
+
+Seven mistakes made while building this, and what each one changed — including
+an image that grew when npm was deleted from it, a security gate that silently
+never ran, and a README that quoted output no machine had produced.
+
+**[Read the retrospective →](LESSONS.md)**
 
 ## Licence
 
