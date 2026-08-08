@@ -12,6 +12,7 @@ Multi-stage build · non-root · read-only filesystem · health-gated startup
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 [Architecture](ARCHITECTURE.md) ·
+[Lessons learned](LESSONS.md) ·
 [Security](SECURITY.md) ·
 [Contributing](CONTRIBUTING.md) ·
 [Changelog](CHANGELOG.md)
@@ -83,6 +84,22 @@ flowchart LR
 
 Full reasoning, including what was rejected, is in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
+### Measured, not asserted
+
+Both figures come from the CI run on `main`, which builds a single-stage version
+of the same application for comparison:
+
+| Image | Size | HIGH/CRITICAL CVEs |
+|---|---|---|
+| **This stack** — Alpine + node binary | **137 MB** | **0** |
+| Single-stage `node:22-alpine` | 162 MB | 8 |
+
+Every one of those 8 findings was in npm's own bundled dependencies — `tar`,
+`sigstore`, `brace-expansion` — and none in application code. Deleting npm after
+the fact does not help: `rm` in a later layer writes whiteouts rather than
+reclaiming bytes, and made the image *larger*. Never adding it is the only way to
+remove it.
+
 ## What CI verifies
 
 Claims in a README age badly, so the ones that matter are tested on every push:
@@ -93,6 +110,7 @@ Claims in a README age badly, so the ones that matter are tested on every push:
 | Unit tests, Node 20 and 22 | 14 tests, including that `/healthz` never touches the database |
 | Image build | `Config.User` is `1000:1000` — the build fails if it regresses to root |
 | Image size | Multi-stage measured against a single-stage build of the same app, reported in the job summary |
+| Trivy | 0 fixable HIGH/CRITICAL findings |
 | Compose stack | Real stack starts, and the smoke suite runs against it |
 | Smoke tests | uid is 1000, `/app` is not writable, `/tmp` is, Postgres is unreachable from the host, a row survives a write-then-read |
 | Trivy | Fails on fixable HIGH/CRITICAL CVEs |
@@ -158,6 +176,14 @@ fixable HIGH/CRITICAL findings. Details and the reporting route:
 - [ ] Multi-architecture images (`linux/amd64`, `linux/arm64`)
 - [ ] Kubernetes manifests using the same probes
 - [ ] Signed images and an SBOM
+
+## Engineering decisions &amp; lessons learned
+
+Seven mistakes made while building this, and what each one changed — including
+an image that grew when npm was deleted from it, a security gate that silently
+never ran, and a README that quoted output no machine had produced.
+
+**[Read the retrospective →](LESSONS.md)**
 
 ## Licence
 

@@ -151,7 +151,7 @@ jobs:
 
       - uses: lycheeverse/lychee-action@v2
         with:
-          args: --no-progress --include-fragments README.md ARCHITECTURE.md SECURITY.md CONTRIBUTING.md
+          args: --no-progress --include-fragments README.md ARCHITECTURE.md LESSONS.md SECURITY.md CONTRIBUTING.md
           fail: true
 
       - name: Reject github.com blob URLs in image tags

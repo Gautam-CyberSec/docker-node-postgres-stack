@@ -45,12 +45,17 @@ RUN npm test
 # requests dropped rather than drained.
 FROM alpine:3.21 AS runtime
 
-# Versions pinned to the minor series so a rebuild is reproducible without
-# breaking the moment Alpine ships a patch release.
+# Package versions are deliberately not pinned, and the base image is pinned
+# instead. Alpine prunes superseded versions from its index, so an exact apk pin
+# stops resolving the first time a patch ships — the build breaks with
+# "unable to select packages" for a reason unrelated to any change here.
+# alpine:3.21 already constrains these to that branch, which is the reproducibility
+# that actually holds.
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
-    libstdc++=~14 \
-    ca-certificates=~20241121 \
-    tini=~0.19
+    libstdc++ \
+    ca-certificates \
+    tini
 
 # The node binary is dynamically linked against libstdc++ and libgcc, both
 # pulled in above.
