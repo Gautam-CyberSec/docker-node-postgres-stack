@@ -4,7 +4,7 @@
 # that ships. See ARCHITECTURE.md for the measured difference.
 
 # ── deps: production dependencies only ───────────────────────────────────────
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY app/package.json app/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
 # ── build: full dependencies, used to run the test suite ─────────────────────
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 
 WORKDIR /app
 COPY app/package.json app/package-lock.json ./
