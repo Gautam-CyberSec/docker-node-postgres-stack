@@ -43,7 +43,7 @@ RUN npm test
 # handler, so without it `docker stop` waits out the grace period and then
 # SIGKILLs — a ten second pause per container on every deploy, with in-flight
 # requests dropped rather than drained.
-FROM alpine:3.21 AS runtime
+FROM alpine:3.24 AS runtime
 
 # Package versions are deliberately not pinned, and the base image is pinned
 # instead. Alpine prunes superseded versions from its index, so an exact apk pin
